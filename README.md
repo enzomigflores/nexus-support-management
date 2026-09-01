@@ -7,25 +7,34 @@ It was designed as a practical business system rather than a standalone demo. Th
 ## Interface Preview
 
 ### Ticket Submission
+Employees can submit requests, choose a category and priority, provide supporting details, and attach files.
+
 ![NEXUS Ticket Submission](screenshots/ticket-submission.png)
 
 ### Admin Panel
+Authorized team members can filter tickets, review ownership and status, and open individual records for further action.
+
 ![NEXUS Admin Panel](screenshots/admin.png)
 
 ### My Tickets
+Requesters can review their own tickets, monitor progress, and open ticket details and update threads.
+
 ![NEXUS My Tickets](screenshots/my-tickets.png)
 
 ### Metrics
+Operational metrics surface ticket volume, backlog, response and resolution timing, attention queues, and team activity.
+
 ![NEXUS Metrics](screenshots/metrics.png)
 
 ### Audit Trail
+The audit interface records system activity such as ticket creation, assignment changes, status changes, updates, and attachments.
+
 ![NEXUS Audit Trail](screenshots/audit.png)
 
 ### NEXUS Ping Pong
+A lightweight loading experience built into selected NEXUS views while application data is loading.
 
-A lightweight loading experience built into selected NEXUS views.
-
-![NEXUS Ping Pong](screenshots/ping-pong.png)
+![NEXUS Ping Pong](screenshots/nexus-ping-pong.png)
 
 ## What it does
 
@@ -130,7 +139,7 @@ nexus-support-management/
 │   ├── my-tickets.png
 │   ├── metrics.png
 │   ├── audit.png
-│   └── ping-pong.png
+│   └── nexus-ping-pong.png
 └── src/
     ├── Code.gs
     ├── index.html
