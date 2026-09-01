@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nexus: {
+              50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81',
+            },
+            zinc: { 800: '#27272a', 900: '#18181b' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .fade-in {
+      animation: fadeIn 0.5s ease-out forwards;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4f46e5;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-zinc-800 font-sans antialiased min-h-screen flex flex-col items-center py-10">
+
+  <div class="text-center mb-8 fade-in" style="animation-delay: 0.1s;">
+    <h1 class="text-4xl font-extrabold tracking-tight text-nexus-900">NEXUS</h1>
+    <p class="text-nexus-600 mt-2 font-medium">Internal Ticketing Portal</p>
+  </div>
+
+  <div class="w-full max-w-2xl bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden fade-in"
+    style="animation-delay: 0.2s;">
+
+    <div id="creatingState"
+      class="hidden flex flex-col items-center justify-center p-12 text-center h-full min-h-[400px]">
+      <div class="loader w-12 h-12 border-4 mb-4"></div>
+      <h3 class="text-lg font-bold text-nexus-700">Creating Ticket...</h3>
+      <p class="text-gray-500 text-sm mt-2">This should only take a moment.</p>
+    </div>
+
+    <div id="successState" class="hidden p-8 bg-green-50 min-h-[400px]">
+      <div class="flex flex-col items-center text-center">
+        <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-3xl">✓
+        </div>
+        <h3 class="text-2xl font-bold text-green-800">Request Received</h3>
+        <p class="text-green-700 mt-2">
+          Your Ticket ID is
+          <span id="displayTicketId" class="font-mono font-bold"></span>
+        </p>
+
+        <div class="mt-6 w-full max-w-xl bg-white border border-green-100 rounded-xl p-5 text-left shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-semibold text-zinc-800">Attachments</p>
+              <p class="text-xs text-zinc-500 mt-1">
+                Uploads happen in the background. Keep this tab open until finished.
+              </p>
+            </div>
+            <div id="attachSummary" class="text-sm font-semibold text-zinc-700">—</div>
+          </div>
+
+          <div class="mt-4">
+            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div id="progressBar" class="h-2 bg-nexus-600 w-0"></div>
+            </div>
+            <div class="mt-3 space-y-2" id="attachList"></div>
+
+            <div id="attachWarning"
+              class="hidden mt-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+              ⚠️ One or more attachments failed to upload. You may retry below, or contact the support team and reference
+              your Ticket ID.
+            </div>
+
+            <div class="mt-4 flex gap-2">
+              <button id="retryBtn" class="hidden px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg shadow transition">
+                Retry Failed Uploads
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button id="submitAnotherBtn" onclick="resetView()" disabled
+          class="mt-8 px-6 py-2 bg-green-600 opacity-60 cursor-not-allowed text-white rounded-lg shadow transition">
+          Submit Another
+        </button>
+        <p id="submitAnotherHint" class="text-xs text-green-700 mt-2">
+          (Enabled after attachments finish uploading)
+        </p>
+      </div>
+    </div>
+
+    <form id="nexusForm" class="p-8 space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Priority <span class="text-red-500">*</span></label>
+          <select id="priority" required class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none">
+            <option value="" disabled selected>Select Level</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Category <span class="text-red-500">*</span></label>
+          <select id="category" required class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none">
+            <option value="" disabled selected>Select Category</option>
+            <optgroup label="ACCOUNTING">
+              <option>ACCOUNTING: Billing and Payments</option>
+              <option>ACCOUNTING: Reports and Documents</option>
+              <option>ACCOUNTING: General Accounting Support</option>
+            </optgroup>
+            <optgroup label="ADMINISTRATIVE">
+              <option>ADMIN: Employee Services</option>
+              <option>ADMIN: Travel and Logistics</option>
+              <option>ADMIN: Documentation</option>
+              <option>ADMIN: Facilities and Supplies</option>
+              <option>ADMIN: General Administrative Support</option>
+            </optgroup>
+            <optgroup label="BUSINESS SYSTEMS">
+              <option>BUSINESS SYSTEMS: Hardware</option>
+              <option>BUSINESS SYSTEMS: Software</option>
+              <option>BUSINESS SYSTEMS: Network</option>
+              <option>BUSINESS SYSTEMS: Process Improvement</option>
+              <option>BUSINESS SYSTEMS: General Support</option>
+            </optgroup>
+            <optgroup label="OPERATIONS">
+              <option>OPERATIONS: General Support</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Summary <span class="text-red-500">*</span></label>
+        <input type="text" id="summary" required class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none">
+        <p class="text-xs text-gray-500 mt-1">Provide a short, specific summary of your request or issue. This will be
+          used as the title of your ticket for easier tracking.</p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Description <span class="text-red-500">*</span></label>
+        <textarea id="description" rows="4" required class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none"></textarea>
+        <p class="text-xs text-gray-500 mt-1">Provide a detailed explanation of your request or issue. Include
+          background, steps taken (if any), and deadlines.</p>
+      </div>
+
+      <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <label class="block text-sm font-semibold text-gray-700 mb-3">Attachments (Max 10MB per file)</label>
+        <div class="grid grid-cols-1 gap-3">
+          <input type="file" id="file1" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+          <input type="file" id="file2" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+          <input type="file" id="file3" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+          <input type="file" id="file4" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+          <input type="file" id="file5" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+        </div>
+      </div>
+
+      <div class="pt-4">
+        <button type="submit" id="submitBtn" class="w-full flex items-center justify-center bg-nexus-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-nexus-700 hover:shadow-xl transition-all">
+          Submit Ticket
+        </button>
+      </div>
+    </form>
+
+    <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 text-center">
+      <p class="text-xs text-gray-400">NEXUS | Internal Support Management System</p>
+    </div>
+  </div>
+
+  <script>
+    const MAX_BYTES = 10 * 1024 * 1024;
+
+    let lastTicketId = null;
+    let selectedFiles = [];
+    let uploadStates = [];
+    let failedIndexes = new Set();
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function qs(id) { return document.getElementById(id); }
+
+    function isAllCapsEntry(value) {
+      const text = String(value || "").trim();
+      if (!text) return false;
+
+      const lettersOnly = text.replace(/[^A-Za-z]/g, "");
+
+      // allow short acronyms
+      if (lettersOnly.length < 6) return false;
+
+      return lettersOnly === lettersOnly.toUpperCase();
+    }
+
+    function validateNoAllCapsEntries_() {
+      const fields = [
+        { id: "summary", label: "Summary" },
+        { id: "description", label: "Description" }
+      ];
+
+      for (const field of fields) {
+        const el = qs(field.id);
+        if (!el) continue;
+
+        if (isAllCapsEntry(el.value)) {
+          alert(
+            `⚠️ ${field.label} appears to be written in ALL CAPS. Please revise it using regular capitalization before submitting.`
+          );
+
+          el.focus();
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function setViewCreating() {
+      qs("nexusForm").classList.add("hidden");
+      qs("successState").classList.add("hidden");
+      qs("creatingState").classList.remove("hidden");
+    }
+
+    function setViewSuccess(ticketId) {
+      qs("creatingState").classList.add("hidden");
+      qs("displayTicketId").innerText = ticketId;
+      qs("successState").classList.remove("hidden");
+      window.scrollTo(0, 0);
+    }
+
+    function initAttachmentUI(files) {
+      const list = qs("attachList");
+      list.innerHTML = "";
+      uploadStates = [];
+      failedIndexes.clear();
+
+      const actualFiles = files.map((f, idx) => {
+        if (!f) return null;
+        return { idx, name: f.name, size: f.size };
+      }).filter(Boolean);
+
+      if (actualFiles.length === 0) {
+        qs("attachSummary").innerText = "No attachments";
+        qs("progressBar").style.width = "100%";
+        return;
+      }
+
+      qs("attachSummary").innerText = `0 / ${actualFiles.length} uploaded`;
+      qs("progressBar").style.width = "0%";
+
+      files.forEach((f, idx) => {
+        if (!f) return;
+        uploadStates[idx] = { name: f.name, status: "Pending", message: "", fileRefIndex: idx };
+
+        const row = document.createElement("div");
+        row.className = "flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2";
+        row.id = "fileRow_" + idx;
+
+        row.innerHTML = `
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-zinc-800 truncate">${escapeHtml(f.name)}</p>
+            <p id="fileMsg_${idx}" class="text-xs text-zinc-500">Pending</p>
+          </div>
+          <div id="fileBadge_${idx}" class="text-xs font-bold px-2 py-1 rounded-full bg-gray-200 text-zinc-700">
+            Pending
+          </div>
+        `;
+
+        list.appendChild(row);
+      });
+
+      disableSubmitAnother();
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[s]));
+    }
+
+    function setFileStatus(idx, status, message) {
+      const badge = qs("fileBadge_" + idx);
+      const msg = qs("fileMsg_" + idx);
+      if (!badge || !msg) return;
+
+      msg.innerText = message || status;
+
+      if (status === "Uploading") {
+        badge.className = "text-xs font-bold px-2 py-1 rounded-full bg-nexus-100 text-nexus-700";
+      } else if (status === "Uploaded") {
+        badge.className = "text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700";
+      } else if (status === "Failed") {
+        badge.className = "text-xs font-bold px-2 py-1 rounded-full bg-red-100 text-red-700";
+      } else {
+        badge.className = "text-xs font-bold px-2 py-1 rounded-full bg-gray-200 text-zinc-700";
+      }
+      badge.innerText = status;
+    }
+
+    function updateProgress() {
+      const total = selectedFiles.filter(Boolean).length;
+      const done = selectedFiles
+        .map((f, idx) => f ? idx : null)
+        .filter(idx => idx !== null)
+        .filter(idx => uploadStates[idx]?.status === "Uploaded").length;
+
+      qs("attachSummary").innerText = `${done} / ${total} uploaded`;
+
+      const pct = total === 0 ? 100 : Math.round((done / total) * 100);
+      qs("progressBar").style.width = `${pct}%`;
+    }
+
+    function showWarningIfNeeded() {
+      const anyFailed = failedIndexes.size > 0;
+      qs("attachWarning").classList.toggle("hidden", !anyFailed);
+      qs("retryBtn").classList.toggle("hidden", !anyFailed);
+    }
+
+    function enableSubmitAnother() {
+      const btn = qs("submitAnotherBtn");
+      btn.disabled = false;
+      btn.className = "mt-8 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition transform hover:-translate-y-0.5";
+      qs("submitAnotherHint").classList.add("hidden");
+    }
+
+    function disableSubmitAnother() {
+      const btn = qs("submitAnotherBtn");
+      btn.disabled = true;
+      btn.className = "mt-8 px-6 py-2 bg-green-600 opacity-60 cursor-not-allowed text-white rounded-lg shadow transition";
+      qs("submitAnotherHint").classList.remove("hidden");
+    }
+
+    async function uploadOne(idx, ticketId) {
+      const file = selectedFiles[idx];
+      if (!file) return;
+
+      try {
+        setFileStatus(idx, "Uploading", "Reading file...");
+        uploadStates[idx].status = "Uploading";
+        updateProgress();
+
+        const base64 = await readFileAsBase64(file);
+
+        setFileStatus(idx, "Uploading", "Uploading file...");
+        const payload = { name: file.name, content: base64, mimeType: file.type };
+
+        await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(res => {
+              if (!res || !res.success) return reject(res?.error || "Upload failed");
+              resolve(res);
+            })
+            .withFailureHandler(err => reject(err))
+            .uploadSingleFile(payload, ticketId, idx);
+        });
+
+        uploadStates[idx].status = "Uploaded";
+        setFileStatus(idx, "Uploaded", "Uploaded");
+        failedIndexes.delete(idx);
+        updateProgress();
+
+      } catch (err) {
+        uploadStates[idx].status = "Failed";
+        failedIndexes.add(idx);
+        setFileStatus(idx, "Failed", ("" + err).slice(0, 160));
+        updateProgress();
+      }
+    }
+
+    async function sendSubmissionNotification_(ticketId) {
+      if (!ticketId) return;
+
+      try {
+        await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(res => {
+              if (res && res.success) return resolve(res);
+              reject(res?.error || "Submission email failed");
+            })
+            .withFailureHandler(reject)
+            .finalizeSubmissionNotification(ticketId);
+        });
+      } catch (err) {
+        console.error("Submission email error:", err);
+      }
+    }
+
+    async function uploadAllSequential(ticketId) {
+      const indexes = selectedFiles.map((f, idx) => f ? idx : null).filter(v => v !== null);
+
+      for (const idx of indexes) {
+        await uploadOne(idx, ticketId);
+      }
+
+      showWarningIfNeeded();
+      await sendSubmissionNotification_(ticketId);
+      enableSubmitAnother();
+    }
+
+    async function retryFailed(ticketId) {
+      if (!ticketId) return;
+      const retryList = Array.from(failedIndexes);
+      if (retryList.length === 0) return;
+
+      disableSubmitAnother();
+      qs("attachWarning").classList.add("hidden");
+
+      for (const idx of retryList) {
+        await uploadOne(idx, ticketId);
+      }
+
+      showWarningIfNeeded();
+      enableSubmitAnother();
+    }
+
+    qs("retryBtn").addEventListener("click", () => retryFailed(lastTicketId));
+
+    qs("nexusForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      if (!validateNoAllCapsEntries_()) return;
+
+      selectedFiles = [
+        qs("file1").files[0],
+        qs("file2").files[0],
+        qs("file3").files[0],
+        qs("file4").files[0],
+        qs("file5").files[0]
+      ];
+
+      for (const f of selectedFiles) {
+        if (f && f.size > MAX_BYTES) {
+          alert(`⚠️ Error: "${f.name}" is too large.\n\nMaximum file size is 10MB per file.`);
+          return;
+        }
+      }
+
+      const formData = {
+        summary: qs("summary").value,
+        description: qs("description").value,
+        priority: qs("priority").value,
+        category: qs("category").value
+      };
+
+      setViewCreating();
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (!res || !res.success) {
+            alert("Error: " + (res?.error || "Unknown"));
+            resetView();
+            return;
+          }
+
+          lastTicketId = res.ticketId;
+          setViewSuccess(lastTicketId);
+          initAttachmentUI(selectedFiles);
+
+          if (selectedFiles.filter(Boolean).length === 0) {
+            sendSubmissionNotification_(lastTicketId)
+              .finally(() => enableSubmitAnother());
+          } else {
+            uploadAllSequential(lastTicketId);
+          }
+        })
+        .withFailureHandler(function(err) {
+          alert("Server Error: " + err);
+          resetView();
+        })
+        .createTicket(formData);
+    });
+
+    function resetView() {
+      qs("nexusForm").reset();
+      qs("summary").value = "";
+      qs("description").value = "";
+
+      qs("successState").classList.add("hidden");
+      qs("creatingState").classList.add("hidden");
+      qs("nexusForm").classList.remove("hidden");
+
+      lastTicketId = null;
+      selectedFiles = [];
+      uploadStates = [];
+      failedIndexes.clear();
+
+      qs("attachList").innerHTML = "";
+      qs("attachWarning").classList.add("hidden");
+      qs("retryBtn").classList.add("hidden");
+      qs("attachSummary").innerText = "—";
+      qs("progressBar").style.width = "0%";
+      qs("submitAnotherHint").classList.remove("hidden");
+
+      window.scrollTo(0, 0);
+    }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              nexus: {
+                50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81',
+              },
+              zinc: { 800: '#27272a', 900: '#18181b' }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; transform: translateY(10px); }
+      @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+      .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .card { border: 1px solid #f1f5f9; border-radius: 16px; background: #fff; box-shadow: 0 12px 30px rgba(15, 23, 42, .06); }
+      .pill { display:inline-flex; padding:.2rem .5rem; border-radius:999px; font-size:11px; font-weight:800; }
+    </style>
+  </head>
+
+  <body class="bg-gray-50 text-zinc-800 font-sans antialiased min-h-screen flex flex-col items-center py-10">
+    <div class="text-center mb-6 fade-in" style="animation-delay: 0.08s;">
+      <h1 class="text-4xl font-extrabold tracking-tight text-nexus-900">NEXUS</h1>
+      <p class="text-nexus-600 mt-2 font-medium">Metrics</p>
+      <p id="lastRefreshed" class="text-xs text-gray-400 mt-1">—</p>
+    </div>
+
+    <div class="w-full max-w-6xl card overflow-hidden fade-in" style="animation-delay: 0.15s;">
+      <!-- Loading -->
+      <div id="loading" class="flex flex-col items-center justify-center p-12 text-center min-h-[420px]">
+        <div class="loader w-12 h-12 border-4 mb-4"></div>
+        <h3 class="text-lg font-bold text-nexus-700">Loading metrics...</h3>
+        <p class="text-gray-500 text-sm mt-2">Please wait.</p>
+      </div>
+
+      <!-- Content -->
+      <div id="content" class="hidden">
+        <!-- Filters -->
+        <div class="p-6 border-b border-gray-100 bg-gray-50">
+          <div class="flex flex-col md:flex-row md:items-end gap-3">
+            <div class="w-full md:w-56">
+              <label class="block text-xs font-bold text-gray-600 mb-1">Department</label>
+              <select id="f_dept" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div class="w-full md:w-48">
+              <label class="block text-xs font-bold text-gray-600 mb-1">Status</label>
+              <select id="f_status" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div class="w-full md:w-48">
+              <label class="block text-xs font-bold text-gray-600 mb-1">Priority</label>
+              <select id="f_priority" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div class="flex-1">
+              <label class="block text-xs font-bold text-gray-600 mb-1">Assigned</label>
+              <select id="f_assigned" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2 pb-1">
+              <input id="f_include_waiting" type="checkbox" class="w-4 h-4" checked>
+              <label for="f_include_waiting" class="text-sm font-bold text-gray-600">Include Waiting</label>
+            </div>
+
+            <div class="flex gap-2">
+              <button id="btn_clear" class="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 text-sm font-bold">
+                Clear
+              </button>
+              <button id="btn_refresh" class="px-4 py-2 rounded-lg bg-nexus-600 hover:bg-nexus-700 text-white text-sm font-bold shadow">
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI tiles -->
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-500">Total Tickets</div>
+              <div id="k_total" class="mt-2 text-2xl font-extrabold text-nexus-900">—</div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-500">Open Backlog</div>
+              <div id="k_open" class="mt-2 text-2xl font-extrabold text-nexus-900">—</div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-500">Unassigned (Open)</div>
+              <div id="k_unassigned" class="mt-2 text-2xl font-extrabold text-nexus-900">—</div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-500">Waiting (Open)</div>
+              <div id="k_waiting" class="mt-2 text-2xl font-extrabold text-nexus-900">—</div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-500">Median Time to First Assign</div>
+              <div id="k_first_assign" class="mt-2 text-2xl font-extrabold text-nexus-900">—</div>
+              <div class="text-xs text-gray-400 mt-1">Based on initial_response_duration</div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-500">Median Time to Resolve</div>
+              <div id="k_resolve" class="mt-2 text-2xl font-extrabold text-nexus-900">—</div>
+              <div class="text-xs text-gray-400 mt-1">Based on time_to_resolve (Closed only)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attention Queue -->
+        <div class="px-6 pb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-extrabold text-nexus-900">Attention Queue</h2>
+            <div class="text-xs text-gray-500">Ranked lists (no thresholds)</div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+              <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <div class="text-sm font-extrabold text-gray-700">Oldest Outstanding</div>
+              </div>
+              <div class="p-3 overflow-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="text-xs text-gray-500">
+                    <tr class="text-left">
+                      <th class="py-2 pr-2">Ticket</th>
+                      <th class="py-2 pr-2">Assigned</th>
+                      <th class="py-2 pr-2">Age</th>
+                    </tr>
+                  </thead>
+                  <tbody id="t_oldest" class="divide-y divide-gray-100"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+              <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <div class="text-sm font-extrabold text-gray-700">Longest Since Last Activity</div>
+              </div>
+              <div class="p-3 overflow-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="text-xs text-gray-500">
+                    <tr class="text-left">
+                      <th class="py-2 pr-2">Ticket</th>
+                      <th class="py-2 pr-2">Assigned</th>
+                      <th class="py-2 pr-2">Inactive</th>
+                    </tr>
+                  </thead>
+                  <tbody id="t_stalest" class="divide-y divide-gray-100"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+              <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <div class="text-sm font-extrabold text-gray-700">Oldest Unassigned</div>
+              </div>
+              <div class="p-3 overflow-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="text-xs text-gray-500">
+                    <tr class="text-left">
+                      <th class="py-2 pr-2">Ticket</th>
+                      <th class="py-2 pr-2">Age</th>
+                      <th class="py-2 pr-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="t_unassigned_oldest" class="divide-y divide-gray-100"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- People performance -->
+        <div class="px-6 pb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-extrabold text-nexus-900">Team Snapshot</h2>
+
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500 font-bold">Sort</span>
+              <select id="p_sort" class="px-2 py-1 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-nexus-600 outline-none">
+                <option value="longest_inactive" selected>Longest inactive (desc)</option>
+                <option value="oldest_ticket">Oldest ticket (desc)</option>
+                <option value="open_count">Open count (desc)</option>
+                <option value="closed_count">Closed count (desc)</option>
+                <option value="avg_resolve">Avg resolve (asc)</option>
+                <option value="updates">Updates posted (desc)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-auto border border-gray-100 rounded-xl bg-white">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0 z-10 text-left text-gray-600">
+                <tr>
+                  <th class="p-3">Person</th>
+                  <th class="p-3">Open</th>
+                  <th class="p-3">Closed</th>
+                  <th class="p-3">Avg resolve</th>
+                  <th class="p-3">Oldest ticket</th>
+                  <th class="p-3">Longest inactive</th>
+                  <th class="p-3">Avg inactive</th>
+                  <th class="p-3">Updates</th>
+                  <th class="p-3">Upd. Atts</th>
+                </tr>
+              </thead>
+              <tbody id="t_people" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+
+          <div class="mt-2 text-xs text-gray-500">
+            Notes: “Inactive” uses <b>last_updated</b> (fallback to ticket timestamp if blank). No audit data used.
+          </div>
+        </div>
+
+        <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 text-center">
+          <p class="text-xs text-gray-400">NEXUS | Internal Support Management System</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const qs = (id) => document.getElementById(id);
+
+      function esc(s) {
+        return String(s ?? "").replace(/[&<>"']/g, c => ({
+          "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+        }[c]));
+      }
+
+      function pillStatus(v) {
+        const val = String(v || "");
+        let cls = "bg-gray-100 text-gray-700";
+        if (val === "In Progress") cls = "bg-nexus-100 text-nexus-700";
+        if (val === "Waiting") cls = "bg-yellow-100 text-yellow-800";
+        if (val === "Closed") cls = "bg-green-100 text-green-700";
+        return `<span class="pill ${cls}">${esc(val || "—")}</span>`;
+      }
+
+      function fmtAge(ms) {
+        ms = Number(ms || 0);
+        if (!ms || ms < 0) return "—";
+        const d = Math.floor(ms / 86400000);
+        const h = Math.floor((ms % 86400000) / 3600000);
+        if (d <= 0) return `${h}h`;
+        return `${d}d ${h}h`;
+      }
+
+      function fmtHms(sec) {
+        sec = Math.round(Number(sec || 0));
+        if (!sec) return "—";
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        return [h,m,s].map(x => String(x).padStart(2,"0")).join(":");
+      }
+
+      function buildFilters() {
+        return {
+          department: qs("f_dept").value,
+          status: qs("f_status").value,
+          priority: qs("f_priority").value,
+          assigned: qs("f_assigned").value,
+          includeWaiting: qs("f_include_waiting").checked
+        };
+      }
+
+      function renderKpis(k) {
+        qs("k_total").textContent = k.totalTickets ?? "—";
+        qs("k_open").textContent = k.openBacklog ?? "—";
+        qs("k_unassigned").textContent = k.unassignedOpen ?? "—";
+        qs("k_waiting").textContent = k.waitingOpen ?? "—";
+        qs("k_first_assign").textContent = fmtHms(k.medianFirstAssignSec || 0);
+        qs("k_resolve").textContent = fmtHms(k.medianResolveSec || 0);
+      }
+
+      function renderTicketMiniTable(tbodyId, rows, mode) {
+        const tb = qs(tbodyId);
+        tb.innerHTML = "";
+
+        if (!rows || !rows.length) {
+          tb.innerHTML = `<tr><td colspan="3" class="py-3 text-gray-400 text-sm">No results.</td></tr>`;
+          return;
+        }
+
+        rows.forEach(r => {
+          const ticketCell = `
+            <div class="font-mono font-extrabold text-nexus-900">${esc(r.ticket_id)}</div>
+            <div class="text-xs text-gray-500 truncate" title="${esc(r.summary)}">${esc(r.summary || "")}</div>
+          `;
+
+          let c2 = "";
+          let c3 = "";
+
+          if (mode === "oldest") {
+            c2 = esc(r.assigned_display || "—");
+            c3 = fmtAge(r.age_ms);
+          } else if (mode === "stalest") {
+            c2 = esc(r.assigned_display || "—");
+            c3 = fmtAge(r.since_ms);
+          } else if (mode === "unassigned") {
+            c2 = fmtAge(r.age_ms);
+            c3 = pillStatus(r.status);
+          }
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="py-2 pr-2 align-top">${ticketCell}</td>
+            <td class="py-2 pr-2 align-top text-gray-700">${c2}</td>
+            <td class="py-2 pr-2 align-top text-gray-700 whitespace-nowrap">${c3}</td>
+          `;
+          tb.appendChild(tr);
+        });
+      }
+
+      function sortPeople(list, sortKey) {
+        const copy = (list || []).slice();
+
+        const num = (v) => {
+          const n = Number(v);
+          return isNaN(n) ? 0 : n;
+        };
+
+        if (sortKey === "oldest_ticket") {
+          copy.sort((a,b) => num(b.oldest_age_ms) - num(a.oldest_age_ms));
+        } else if (sortKey === "open_count") {
+          copy.sort((a,b) => num(b.open_count) - num(a.open_count));
+        } else if (sortKey === "closed_count") {
+          copy.sort((a,b) => num(b.closed_count) - num(a.closed_count));
+        } else if (sortKey === "avg_resolve") {
+          // Sort average resolution time ascending.
+          copy.sort((a,b) => num(a.avg_resolve_sec) - num(b.avg_resolve_sec));
+        } else if (sortKey === "updates") {
+          copy.sort((a,b) => num(b.updates_count) - num(a.updates_count));
+        } else {
+          // Default to longest inactive.
+          copy.sort((a,b) => num(b.longest_since_ms) - num(a.longest_since_ms));
+        }
+
+        return copy;
+      }
+
+      function renderPeople(rows) {
+        const tb = qs("t_people");
+        tb.innerHTML = "";
+
+        const sorted = sortPeople(rows, qs("p_sort").value);
+
+        if (!sorted.length) {
+          tb.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-400">No people found.</td></tr>`;
+          return;
+        }
+
+        sorted.forEach(r => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="p-3 font-extrabold text-gray-800 whitespace-nowrap">${esc(r.display || r.email || "")}</td>
+
+            <td class="p-3 text-gray-700">${Number(r.open_count || 0)}</td>
+            <td class="p-3 text-gray-700">${Number(r.closed_count || 0)}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${fmtHms(r.avg_resolve_sec || 0)}</td>
+
+            <td class="p-3 text-gray-700 whitespace-nowrap">${fmtAge(r.oldest_age_ms)}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${fmtAge(r.longest_since_ms)}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${fmtAge(r.avg_since_ms)}</td>
+
+            <td class="p-3 text-gray-700">${Number(r.updates_count || 0)}</td>
+            <td class="p-3 text-gray-700">${Number(r.update_att_count || 0)}</td>
+          `;
+          tb.appendChild(tr);
+        });
+      }
+
+      function fetchMetrics() {
+        qs("content").classList.add("hidden");
+        qs("loading").classList.remove("hidden");
+
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.success) {
+              alert(res?.error || "Failed to load metrics.");
+              return;
+            }
+
+            qs("lastRefreshed").textContent = `Last refreshed: ${res.updatedAt || "—"}`;
+
+            renderKpis(res.kpis || {});
+            renderTicketMiniTable("t_oldest", res.attention?.oldestOutstanding || [], "oldest");
+            renderTicketMiniTable("t_stalest", res.attention?.stalest || [], "stalest");
+            renderTicketMiniTable("t_unassigned_oldest", res.attention?.oldestUnassigned || [], "unassigned");
+            renderPeople(res.people || []);
+
+            qs("loading").classList.add("hidden");
+            qs("content").classList.remove("hidden");
+          })
+          .withFailureHandler(err => {
+            alert("Server error: " + err);
+          })
+          .metricsGet(buildFilters());
+      }
+
+      function init() {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.success) {
+              alert(res?.error || "Failed to init metrics.");
+              return;
+            }
+
+            // Populate filters.
+            (res.departments || []).forEach(d => qs("f_dept").appendChild(new Option(d, d)));
+            (res.statuses || []).forEach(s => qs("f_status").appendChild(new Option(s, s)));
+            (res.priorities || []).forEach(p => qs("f_priority").appendChild(new Option(p, p)));
+
+            // Populate assignees.
+            (res.assignees || []).forEach(a => {
+              qs("f_assigned").appendChild(new Option(a.label, a.email));
+            });
+
+            // Events
+            qs("btn_refresh").addEventListener("click", fetchMetrics);
+            qs("btn_clear").addEventListener("click", () => {
+              qs("f_dept").value = "";
+              qs("f_status").value = "";
+              qs("f_priority").value = "";
+              qs("f_assigned").value = "";
+              qs("f_include_waiting").checked = true;
+              fetchMetrics();
+            });
+
+            ["f_dept","f_status","f_priority","f_assigned","f_include_waiting"].forEach(id => {
+              qs(id).addEventListener("change", fetchMetrics);
+            });
+
+            qs("p_sort").addEventListener("change", () => {
+              // Refresh metrics after changing the sort.
+              fetchMetrics();
+            });
+
+            
+            fetchMetrics();
+          })
+          .withFailureHandler(err => alert("Server error: " + err))
+          .metricsInit();
+      }
+
+      init();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            nexus: {
+              50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81',
+            },
+            zinc: { 800: '#27272a', 900: '#18181b' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .fade-in {
+      animation: fadeIn 0.5s ease-out forwards;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4f46e5;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .modal-overlay {
+      background: rgba(0, 0, 0, 0.55);
+    }
+
+    /* NEXUS Pong */
+    .boot-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: #f9fafb;
+    }
+
+    .boot-loader.hidden { display: none; }
+
+    .pong-shell {
+      width: min(92vw, 580px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .pong-brand {
+      color: #312e81;
+      font-size: clamp(42px, 8vw, 72px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0.14em;
+      margin-left: 0.14em;
+      user-select: none;
+    }
+
+    .pong-loading-text {
+      margin-top: 10px;
+      color: #6366f1;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .pong-header {
+      width: 100%;
+      margin-top: 26px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .pong-title {
+      color: #27272a;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .pong-status {
+      margin-top: 3px;
+      color: #71717a;
+      font-size: 12px;
+    }
+
+    .pong-score-box {
+      flex-shrink: 0;
+      min-width: 82px;
+      padding: 8px 12px;
+      text-align: center;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+    }
+
+    .pong-score-label {
+      display: block;
+      color: #9ca3af;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .pong-score {
+      display: block;
+      margin-top: 2px;
+      color: #312e81;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .pong-arena {
+      position: relative;
+      width: 100%;
+      height: 290px;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #ffffff 0%, #f7f8ff 100%);
+      border: 1px solid #e0e7ff;
+      border-radius: 20px;
+      box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.03);
+      touch-action: none;
+      cursor: none;
+    }
+
+    .pong-arena::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 14px;
+      bottom: 14px;
+      border-left: 2px dashed rgba(99, 102, 241, 0.10);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .pong-ball {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      background: #4f46e5;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35), 0 0 0 5px rgba(99, 102, 241, 0.08);
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    .pong-paddle {
+      position: absolute;
+      left: 0;
+      bottom: 16px;
+      width: 100px;
+      height: 13px;
+      border-radius: 9999px;
+      background: #312e81;
+      box-shadow: 0 5px 12px rgba(49, 46, 129, 0.22);
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    .pong-footer {
+      margin-top: 12px;
+      color: #9ca3af;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    @media (max-width: 520px) {
+      .pong-arena { height: 250px; }
+      .pong-paddle { width: 86px; }
+      .pong-header { align-items: center; }
+      .pong-status { max-width: 230px; }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-zinc-800 font-sans antialiased min-h-screen flex flex-col items-center py-10">
+
+  <div id="bootLoading" class="boot-loader">
+    <div class="pong-shell">
+      <div class="pong-brand">NEXUS</div>
+      <div class="pong-loading-text">Loading My Tickets...</div>
+
+      <div class="pong-header">
+        <div>
+          <div class="pong-title">NEXUS Ping Pong</div>
+          <div id="pongStatus" class="pong-status">Move your mouse or finger to control the paddle.</div>
+        </div>
+
+        <div class="pong-score-box">
+          <span class="pong-score-label">Score</span>
+          <span id="pongScore" class="pong-score">0</span>
+        </div>
+      </div>
+
+      <div id="pongArena" class="pong-arena">
+        <div id="pongBall" class="pong-ball"></div>
+        <div id="pongPaddle" class="pong-paddle"></div>
+      </div>
+
+      <div class="pong-footer">Mouse / touch / ← → keys · NEXUS opens automatically when ready.</div>
+    </div>
+  </div>
+
+  <div class="text-center mb-6 fade-in" style="animation-delay: 0.08s;">
+    <h1 class="text-4xl font-extrabold tracking-tight text-nexus-900">NEXUS</h1>
+    <p class="text-nexus-600 mt-2 font-medium">My Tickets</p>
+  </div>
+
+  <div class="w-full max-w-6xl bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden fade-in"
+    style="animation-delay: 0.15s;">
+
+    <div id="loading" class="flex flex-col items-center justify-center p-12 text-center min-h-[420px]">
+      <div class="loader w-12 h-12 border-4 mb-4"></div>
+      <h3 class="text-lg font-bold text-nexus-700">Loading your tickets...</h3>
+      <p class="text-gray-500 text-sm mt-2">Please wait.</p>
+    </div>
+
+    <div id="content" class="hidden">
+      <div class="p-6 border-b border-gray-100 bg-gray-50">
+        <div class="flex flex-col md:flex-row md:items-end gap-3">
+          <div class="flex-1">
+            <label class="block text-xs font-bold text-gray-600 mb-1">Search</label>
+            <input id="f_search"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm"
+              placeholder="Ticket ID or summary contains...">
+          </div>
+          <div class="w-full md:w-44">
+            <label class="block text-xs font-bold text-gray-600 mb-1">Status</label>
+            <select id="f_status"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+              <option value="">All</option>
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Waiting">Waiting</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn_clear"
+              class="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 text-sm font-bold">
+              Clear
+            </button>
+            <button id="btn_refresh"
+              class="px-4 py-2 rounded-lg bg-nexus-600 hover:bg-nexus-700 text-white text-sm font-bold shadow">
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <div class="overflow-auto border border-gray-100 rounded-xl">
+          <table class="min-w-[1180px] w-full text-[12px] leading-tight table-fixed">
+            <colgroup>
+              <col style="width:96px">
+              <col style="width:155px">
+              <col style="width:250px">
+              <col style="width:90px">
+              <col style="width:150px">
+              <col style="width:185px">
+              <col style="width:110px">
+              <col style="width:260px">
+              <col style="width:155px">
+              <col style="width:90px">
+            </colgroup>
+
+            <thead class="bg-gray-50 sticky top-0 z-10">
+              <tr class="text-left">
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Ticket</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Timestamp</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Summary</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Priority</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Department</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Assigned</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Status</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Latest Update</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Last Updated</th>
+                <th class="px-2 py-2 text-[11px] font-extrabold text-gray-600 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="tbody" class="divide-y divide-gray-100 bg-white"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div class="text-xs text-gray-500"><span id="pagerInfo"></span></div>
+
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-gray-600">Rows</label>
+            <select id="pageSize"
+              class="px-2 py-1 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-nexus-600 outline-none">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+
+            <button id="btnPrev"
+              class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 text-sm font-bold disabled:opacity-50"
+              type="button">Prev</button>
+
+            <div class="text-sm text-gray-700 font-bold"><span id="pageLabel">1</span></div>
+
+            <button id="btnNext"
+              class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 text-sm font-bold disabled:opacity-50"
+              type="button">Next</button>
+          </div>
+        </div>
+
+        <div class="mt-3 text-xs text-gray-500">
+          Tip: click “View” to open your ticket details and updates.
+        </div>
+      </div>
+
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 text-center">
+        <p class="text-xs text-gray-400">NEXUS | Internal Support Management System</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="hidden fixed inset-0 modal-overlay z-50">
+    <div class="min-h-screen flex items-center justify-center p-4">
+      <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden fade-in"
+        id="modalCard">
+        <div class="p-5 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 class="text-xl font-extrabold text-nexus-900">
+              Ticket <span id="m_ticketId" class="font-mono"></span>
+            </h2>
+            <div class="mt-1 text-sm text-gray-500">
+              <span class="font-semibold">Last Updated:</span> <span id="m_lastUpdated">—</span>
+              <span class="mx-2">•</span>
+              <span class="font-semibold">Updated By:</span> <span id="m_updatedBy">—</span>
+            </div>
+          </div>
+          <button id="modalClose" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-2">×</button>
+        </div>
+
+        <div class="p-6 space-y-6 max-h-[78vh] overflow-auto">
+          <div class="bg-white border border-gray-100 rounded-xl p-4">
+            <h3 class="text-sm font-extrabold text-nexus-900 mb-3">Ticket Details</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div><span class="font-bold text-gray-600">Timestamp:</span> <span id="m_timestamp"></span></div>
+              <div><span class="font-bold text-gray-600">Department:</span> <span id="m_department"></span></div>
+              <div><span class="font-bold text-gray-600">Category:</span> <span id="m_category"></span></div>
+              <div><span class="font-bold text-gray-600">Priority:</span> <span id="m_priority"></span></div>
+              <div><span class="font-bold text-gray-600">Status:</span> <span id="m_status"></span></div>
+              <div><span class="font-bold text-gray-600">Assigned:</span> <span id="m_assigned"></span></div>
+            </div>
+
+            <div class="mt-4">
+              <div class="text-xs font-bold text-gray-600">Summary</div>
+              <div id="m_summary" class="mt-1 text-sm font-semibold text-zinc-800"></div>
+            </div>
+
+            <div class="mt-4">
+              <div class="text-xs font-bold text-gray-600">Description</div>
+              <div id="m_description"
+                class="mt-1 text-sm text-zinc-800 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-44 overflow-auto">
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-xl p-4">
+            <h3 class="text-sm font-extrabold text-nexus-900 mb-3">Attachments</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"><span class="font-bold text-gray-600">Attachment 1</span><span id="att1"></span></div>
+              <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"><span class="font-bold text-gray-600">Attachment 2</span><span id="att2"></span></div>
+              <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"><span class="font-bold text-gray-600">Attachment 3</span><span id="att3"></span></div>
+              <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"><span class="font-bold text-gray-600">Attachment 4</span><span id="att4"></span></div>
+              <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"><span class="font-bold text-gray-600">Attachment 5</span><span id="att5"></span></div>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-xl p-4">
+            <h3 class="text-sm font-extrabold text-nexus-900 mb-3">Updates</h3>
+
+            <div id="updatesThread"
+              class="space-y-3 max-h-[320px] overflow-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+            </div>
+
+            <div class="mt-3 flex items-center justify-between">
+              <button id="btnLoadOlder"
+                class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition disabled:opacity-50"
+                type="button">Load older</button>
+              <div id="loadOlderIndicator" class="text-xs font-bold text-gray-500"></div>
+            </div>
+
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <div class="text-xs font-bold text-gray-600">Post a new update</div>
+                <div id="updateIndicator" class="text-xs font-bold text-gray-500"></div>
+              </div>
+
+              <textarea id="updateMessageInput" rows="3"
+                class="mt-2 w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm"
+                placeholder="Type your update..."></textarea>
+
+              <div class="mt-3 text-xs font-bold text-gray-600">Update attachments (optional, max 10MB each)</div>
+              <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input type="file" id="u1" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+                <input type="file" id="u2" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+                <input type="file" id="u3" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+                <input type="file" id="u4" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+                <input type="file" id="u5" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-white file:text-nexus-700 hover:file:bg-nexus-50 transition cursor-pointer">
+              </div>
+
+              <div class="mt-3">
+                <button id="btnPostUpdate"
+                  class="px-4 py-2 rounded-lg bg-nexus-600 hover:bg-nexus-700 text-white text-sm font-bold shadow"
+                  type="button">Post update</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MAX_BYTES = 10 * 1024 * 1024;
+
+    let state = {
+      tickets: [],
+      filtered: [],
+      pageSize: 10,
+      page: 1,
+      current: null
+    };
+
+    const qs = (id) => document.getElementById(id);
+
+    // NEXUS Pong
+    let nexusPongScore_ = 0;
+    let nexusPongRunning_ = false;
+    let nexusPongFrame_ = null;
+    let nexusPongLastTime_ = 0;
+
+    let nexusPongBall_ = {
+      x: 0,
+      y: 0,
+      vx: 230,
+      vy: 220
+    };
+
+    let nexusPongPaddleX_ = 0;
+
+    function resetNexusPongBall_() {
+      const arena = qs("pongArena");
+      const ball = qs("pongBall");
+      if (!arena || !ball) return;
+
+      const arenaWidth = arena.clientWidth;
+      const arenaHeight = arena.clientHeight;
+
+      nexusPongBall_.x = (arenaWidth - ball.offsetWidth) / 2;
+      nexusPongBall_.y = arenaHeight * 0.32;
+
+      const direction = Math.random() < 0.5 ? -1 : 1;
+      nexusPongBall_.vx = direction * (210 + Math.random() * 60);
+      nexusPongBall_.vy = 220 + Math.random() * 40;
+    }
+
+    function setNexusPongPaddle_(x) {
+      const arena = qs("pongArena");
+      const paddle = qs("pongPaddle");
+      if (!arena || !paddle) return;
+
+      const maxX = Math.max(0, arena.clientWidth - paddle.offsetWidth);
+      nexusPongPaddleX_ = Math.max(0, Math.min(maxX, x));
+      paddle.style.transform = `translateX(${nexusPongPaddleX_}px)`;
+    }
+
+    function centerNexusPongPaddle_() {
+      const arena = qs("pongArena");
+      const paddle = qs("pongPaddle");
+      if (!arena || !paddle) return;
+
+      setNexusPongPaddle_((arena.clientWidth - paddle.offsetWidth) / 2);
+    }
+
+    function updateNexusPongMessage_() {
+      const status = qs("pongStatus");
+      if (!status) return;
+
+      if (nexusPongScore_ >= 20) {
+        status.textContent = "Okay. You're definitely not waiting anymore.";
+      } else if (nexusPongScore_ >= 15) {
+        status.textContent = "NEXUS Ping Pong champion.";
+      } else if (nexusPongScore_ >= 10) {
+        status.textContent = "Double digits. Nice.";
+      } else if (nexusPongScore_ >= 5) {
+        status.textContent = "Good rally.";
+      } else {
+        status.textContent = "Keep it alive.";
+      }
+    }
+
+    function nexusPongLoop_(timestamp) {
+      if (!nexusPongRunning_) return;
+
+      const boot = qs("bootLoading");
+      if (!boot || boot.classList.contains("hidden")) {
+        nexusPongRunning_ = false;
+        nexusPongFrame_ = null;
+        return;
+      }
+
+      const arena = qs("pongArena");
+      const ball = qs("pongBall");
+      const paddle = qs("pongPaddle");
+
+      if (!arena || !ball || !paddle) {
+        nexusPongRunning_ = false;
+        return;
+      }
+
+      if (!nexusPongLastTime_) nexusPongLastTime_ = timestamp;
+
+      let dt = (timestamp - nexusPongLastTime_) / 1000;
+      nexusPongLastTime_ = timestamp;
+      dt = Math.min(dt, 0.035);
+
+      const arenaWidth = arena.clientWidth;
+      const arenaHeight = arena.clientHeight;
+      const ballWidth = ball.offsetWidth;
+      const ballHeight = ball.offsetHeight;
+      const paddleWidth = paddle.offsetWidth;
+      const paddleHeight = paddle.offsetHeight;
+      const paddleY = arenaHeight - 16 - paddleHeight;
+
+      nexusPongBall_.x += nexusPongBall_.vx * dt;
+      nexusPongBall_.y += nexusPongBall_.vy * dt;
+
+      if (nexusPongBall_.x <= 0) {
+        nexusPongBall_.x = 0;
+        nexusPongBall_.vx = Math.abs(nexusPongBall_.vx);
+      }
+
+      if (nexusPongBall_.x + ballWidth >= arenaWidth) {
+        nexusPongBall_.x = arenaWidth - ballWidth;
+        nexusPongBall_.vx = -Math.abs(nexusPongBall_.vx);
+      }
+
+      if (nexusPongBall_.y <= 0) {
+        nexusPongBall_.y = 0;
+        nexusPongBall_.vy = Math.abs(nexusPongBall_.vy);
+      }
+
+      const ballBottom = nexusPongBall_.y + ballHeight;
+      const ballCenterX = nexusPongBall_.x + (ballWidth / 2);
+      const paddleLeft = nexusPongPaddleX_;
+      const paddleRight = nexusPongPaddleX_ + paddleWidth;
+
+      if (
+        nexusPongBall_.vy > 0 &&
+        ballBottom >= paddleY &&
+        nexusPongBall_.y < paddleY + paddleHeight &&
+        ballCenterX >= paddleLeft &&
+        ballCenterX <= paddleRight
+      ) {
+        nexusPongBall_.y = paddleY - ballHeight;
+
+        const paddleCenter = paddleLeft + (paddleWidth / 2);
+        const relativeHit = (ballCenterX - paddleCenter) / (paddleWidth / 2);
+
+        nexusPongBall_.vx += relativeHit * 110;
+        const maxHorizontalSpeed = 430;
+        nexusPongBall_.vx = Math.max(-maxHorizontalSpeed, Math.min(maxHorizontalSpeed, nexusPongBall_.vx));
+        nexusPongBall_.vy = -Math.min(430, Math.abs(nexusPongBall_.vy) + 12);
+
+        nexusPongScore_++;
+        const score = qs("pongScore");
+        if (score) score.textContent = String(nexusPongScore_);
+        updateNexusPongMessage_();
+      }
+
+      if (nexusPongBall_.y > arenaHeight) {
+        const status = qs("pongStatus");
+        if (status) status.textContent = "Missed! Ball back in play.";
+        resetNexusPongBall_();
+      }
+
+      ball.style.transform = `translate(${nexusPongBall_.x}px, ${nexusPongBall_.y}px)`;
+      nexusPongFrame_ = requestAnimationFrame(nexusPongLoop_);
+    }
+
+    function initNexusPong_() {
+      const arena = qs("pongArena");
+      const paddle = qs("pongPaddle");
+      const score = qs("pongScore");
+      if (!arena || !paddle || !score) return;
+
+      nexusPongScore_ = 0;
+      score.textContent = "0";
+
+      const status = qs("pongStatus");
+      if (status) status.textContent = "Move your mouse or finger to control the paddle.";
+
+      centerNexusPongPaddle_();
+      resetNexusPongBall_();
+
+      arena.addEventListener("pointermove", function (event) {
+        const rect = arena.getBoundingClientRect();
+        const pointerX = event.clientX - rect.left;
+        setNexusPongPaddle_(pointerX - (paddle.offsetWidth / 2));
+      });
+
+      arena.addEventListener("pointerdown", function (event) {
+        const rect = arena.getBoundingClientRect();
+        const pointerX = event.clientX - rect.left;
+        setNexusPongPaddle_(pointerX - (paddle.offsetWidth / 2));
+      });
+
+      window.addEventListener("keydown", function (event) {
+        const boot = qs("bootLoading");
+        if (!boot || boot.classList.contains("hidden")) return;
+
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          setNexusPongPaddle_(nexusPongPaddleX_ - 32);
+        }
+
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          setNexusPongPaddle_(nexusPongPaddleX_ + 32);
+        }
+      });
+
+      window.addEventListener("resize", function () {
+        const boot = qs("bootLoading");
+        if (!boot || boot.classList.contains("hidden")) return;
+
+        centerNexusPongPaddle_();
+        resetNexusPongBall_();
+      });
+
+      nexusPongLastTime_ = 0;
+      nexusPongRunning_ = true;
+      nexusPongFrame_ = requestAnimationFrame(nexusPongLoop_);
+    }
+
+    // Preserve date-like messages as text and normalize date values for display.
+    function forceTextOnSubmit_(s) {
+      const v = String(s ?? "").trim();
+      if (!v) return "";
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v)) return "'" + v;
+      return v;
+    }
+
+    function normalizeUpdateMessage_(v) {
+      if (v instanceof Date) {
+        const mm = String(v.getMonth() + 1).padStart(2, "0");
+        const dd = String(v.getDate()).padStart(2, "0");
+        const yyyy = v.getFullYear();
+        return `${mm}/${dd}/${yyyy}`;
+      }
+
+      let s = String(v ?? "");
+
+      if (/^'\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        return s.slice(1);
+      }
+
+      if (s.includes("GMT") && s.includes("(")) {
+        const d = new Date(s);
+        if (!Number.isNaN(d.getTime())) {
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          const yyyy = d.getFullYear();
+          return `${mm}/${dd}/${yyyy}`;
+        }
+      }
+
+      return s;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[s]));
+    }
+
+    function escapeAttr(str) {
+      return String(str).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    }
+
+    function pill(v) {
+      const val = (v || "").toString();
+      let cls = "bg-gray-100 text-gray-700";
+      if (val === "High") cls = "bg-red-100 text-red-700";
+      if (val === "Medium") cls = "bg-yellow-100 text-yellow-800";
+      if (val === "Low") cls = "bg-green-100 text-green-700";
+
+      if (val === "Open") cls = "bg-gray-100 text-gray-700";
+      if (val === "In Progress") cls = "bg-nexus-100 text-nexus-700";
+      if (val === "Waiting") cls = "bg-yellow-100 text-yellow-800";
+      if (val === "Closed") cls = "bg-green-100 text-green-700";
+
+      return `<span class="inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-extrabold ${cls} whitespace-nowrap">${escapeHtml(val || "—")}</span>`;
+    }
+
+    function badgeAttachment(url) {
+      if (!url) return `<span class="text-gray-400 text-xs font-bold">None</span>`;
+      return `
+        <button class="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-nexus-100 text-nexus-700 hover:bg-nexus-50 text-xs font-bold"
+          onclick="window.open('${escapeAttr(url)}','_blank')"
+          type="button"
+        >📎 Open</button>
+      `;
+    }
+
+    function setIndicator(elId, mode, text) {
+      const el = qs(elId);
+      if (!el) return;
+
+      if (mode === "saving") {
+        el.innerHTML = `<span class="inline-flex items-center gap-2 text-nexus-700"><span class="loader" style="width:14px;height:14px;border-width:2px;"></span>Saving...</span>`;
+      } else if (mode === "saved") {
+        el.innerHTML = `<span class="text-green-700">✅ Saved</span>`;
+        setTimeout(() => el.innerHTML = "", 1500);
+      } else if (mode === "error") {
+        el.innerHTML = `<span class="text-red-600">⚠ ${text || "Error"}</span>`;
+      } else {
+        el.innerHTML = "";
+      }
+    }
+
+    function applyFilters() {
+      const q = qs("f_search").value.trim().toLowerCase();
+      const st = qs("f_status").value;
+
+      let rows = state.tickets.slice();
+
+      if (q) {
+        rows = rows.filter(t =>
+          (t.ticket_id || "").toLowerCase().includes(q) ||
+          (t.summary || "").toLowerCase().includes(q)
+        );
+      }
+
+      if (st) rows = rows.filter(t => (t.status || "") === st);
+
+      rows.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+
+      state.filtered = rows;
+      state.page = 1;
+      renderPaged();
+    }
+
+    function renderPaged() {
+      const rows = state.filtered;
+      const ps = state.pageSize;
+      const total = rows.length;
+
+      const pageCount = Math.max(1, Math.ceil(total / ps));
+      if (state.page > pageCount) state.page = pageCount;
+
+      const start = (state.page - 1) * ps;
+      const end = start + ps;
+      const slice = rows.slice(start, end);
+
+      renderTable(slice);
+
+      qs("btnPrev").disabled = (state.page <= 1);
+      qs("btnNext").disabled = (state.page >= pageCount);
+      qs("pageLabel").textContent = `Page ${state.page} of ${pageCount}`;
+      qs("pagerInfo").textContent = total
+        ? `Showing ${start + 1}–${Math.min(end, total)} of ${total} tickets`
+        : `No tickets found.`;
+    }
+
+    function renderTable(rows) {
+      const tbody = qs("tbody");
+      tbody.innerHTML = "";
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="px-3 py-6 text-center text-gray-400 text-sm">No tickets found.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      rows.forEach(t => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="px-2 py-2 font-mono font-extrabold text-nexus-900 whitespace-nowrap">${escapeHtml(t.ticket_id || "")}</td>
+          <td class="px-2 py-2 text-gray-600 whitespace-nowrap">${escapeHtml(t.timestamp || "—")}</td>
+          <td class="px-2 py-2 text-gray-800 truncate" title="${escapeAttr(t.summary || "")}">${escapeHtml(t.summary || "—")}</td>
+          <td class="px-2 py-2">${pill(t.priority)}</td>
+          <td class="px-2 py-2 text-gray-700 truncate" title="${escapeAttr(t.department || "")}">${escapeHtml(t.department || "—")}</td>
+          <td class="px-2 py-2 text-gray-700 truncate" title="${escapeAttr(t.assigned || "")}">${t.assigned ? escapeHtml(t.assigned) : `<span class="text-gray-400">—</span>`}</td>
+          <td class="px-2 py-2">${pill(t.status)}</td>
+          <td class="px-2 py-2 text-gray-700 truncate" title="${escapeAttr(normalizeUpdateMessage_(t.update_latest || ""))}">${escapeHtml(normalizeUpdateMessage_(t.update_latest || "—"))}</td>
+          <td class="px-2 py-2 text-gray-600 whitespace-nowrap">${escapeHtml(t.last_updated || "—")}</td>
+          <td class="px-2 py-2">
+            <button class="px-2.5 py-1 rounded-md bg-nexus-600 hover:bg-nexus-700 text-white text-[11px] font-extrabold shadow whitespace-nowrap"
+              type="button" data-id="${escapeAttr(t.ticket_id)}">View</button>
+          </td>
+        `;
+        tr.querySelector("button[data-id]").addEventListener("click", () => openModal(t.ticket_id));
+        tbody.appendChild(tr);
+      });
+    }
+
+    let updatesState = { ticketId: null, cursorMs: null, hasMore: false };
+    let postUpdateInFlight = false;
+
+    function openModal(ticketId) {
+      const t = state.tickets.find(x => x.ticket_id === ticketId);
+      if (!t) return;
+
+      state.current = JSON.parse(JSON.stringify(t));
+      const c = state.current;
+
+      qs("m_ticketId").textContent = c.ticket_id || "";
+      qs("m_timestamp").textContent = c.timestamp || "—";
+      qs("m_department").textContent = c.department || "—";
+      qs("m_category").textContent = c.category || "—";
+      qs("m_priority").textContent = c.priority || "—";
+      qs("m_status").textContent = c.status || "—";
+      qs("m_assigned").textContent = c.assigned || "—";
+      qs("m_summary").textContent = c.summary || "—";
+      qs("m_description").textContent = c.description || "—";
+
+      qs("m_lastUpdated").textContent = c.last_updated || "—";
+      qs("m_updatedBy").textContent = c.updated_by || "—";
+
+      qs("att1").innerHTML = badgeAttachment(c.attachment_1);
+      qs("att2").innerHTML = badgeAttachment(c.attachment_2);
+      qs("att3").innerHTML = badgeAttachment(c.attachment_3);
+      qs("att4").innerHTML = badgeAttachment(c.attachment_4);
+      qs("att5").innerHTML = badgeAttachment(c.attachment_5);
+
+      qs("updateMessageInput").value = "";
+      clearUpdateFiles();
+      qs("updatesThread").innerHTML = "";
+      qs("loadOlderIndicator").innerHTML = "";
+
+      qs("modal").classList.remove("hidden");
+      updatesResetAndLoad_(c.ticket_id);
+    }
+
+    function closeModal() {
+      qs("modal").classList.add("hidden");
+      state.current = null;
+    }
+
+    function clearUpdateFiles() {
+      ["u1","u2","u3","u4","u5"].forEach(id => { qs(id).value = ""; });
+    }
+
+    function setPostUpdateUiLocked_(locked) {
+      const btn = qs("btnPostUpdate");
+      if (btn) {
+        btn.disabled = locked;
+        btn.classList.toggle("opacity-60", locked);
+        btn.classList.toggle("cursor-not-allowed", locked);
+      }
+
+      const msg = qs("updateMessageInput");
+      if (msg) msg.disabled = locked;
+
+      ["u1","u2","u3","u4","u5"].forEach(id => {
+        const el = qs(id);
+        if (el) el.disabled = locked;
+      });
+
+      const older = qs("btnLoadOlder");
+      if (older) {
+        older.disabled = locked || !updatesState.hasMore;
+        older.classList.toggle("opacity-60", locked);
+        older.classList.toggle("cursor-not-allowed", locked);
+      }
+    }
+
+    function updatesAttIcon_(url) {
+      if (!url) return "";
+      return `
+        <button type="button"
+          class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition"
+          onclick="window.open('${escapeAttr(url)}','_blank')"
+          title="Open attachment"
+        >📎</button>
+      `;
+    }
+
+    function updatesRenderCard_(u, mode, opts = {}) {
+      const thread = qs("updatesThread");
+      const card = document.createElement("div");
+      card.className = "bg-white border border-gray-200 rounded-lg p-3";
+
+      const meta = document.createElement("div");
+      meta.className = "text-xs text-gray-600";
+      meta.textContent = `${u.update_author_email || "—"} • ${u.update_timestamp || "—"}`;
+
+      const msg = document.createElement("div");
+      msg.className = "mt-2 text-sm text-zinc-800 whitespace-pre-wrap";
+      msg.textContent = normalizeUpdateMessage_(u.update_message);
+
+      const urls = [
+        u.update_att_1 || "",
+        u.update_att_2 || "",
+        u.update_att_3 || "",
+        u.update_att_4 || "",
+        u.update_att_5 || ""
+      ];
+
+      const shown = [];
+      for (let i = 0; i < 5; i++) {
+        const hasUrl = !!urls[i];
+        const isPending = !!(opts.pendingSlots && opts.pendingSlots[i] && Number.isFinite(opts.rowIndex));
+        if (hasUrl || isPending) shown.push({ i, url: urls[i], pending: isPending });
+      }
+
+      card.appendChild(meta);
+      card.appendChild(msg);
+
+      if (shown.length) {
+        const atts = document.createElement("div");
+        atts.className = "mt-2 flex flex-wrap gap-2";
+
+        shown.forEach(({ i, url, pending }) => {
+          const wrap = document.createElement("div");
+          if (pending) {
+            wrap.innerHTML = `
+              <span id="upd_${opts.rowIndex}_${i}" class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white border border-gray-300">
+                <span class="loader" style="width:14px;height:14px;border-width:2px;"></span>
+              </span>
+            `;
+          } else {
+            wrap.innerHTML = updatesAttIcon_(url);
+          }
+          atts.appendChild(wrap);
+        });
+
+        card.appendChild(atts);
+      }
+
+      if (mode === "prepend") thread.prepend(card);
+      else thread.appendChild(card);
+    }
+
+    function updatesResetAndLoad_(ticketId) {
+      updatesState.ticketId = ticketId;
+      updatesState.cursorMs = null;
+      updatesState.hasMore = false;
+
+      qs("btnLoadOlder").disabled = true;
+      qs("loadOlderIndicator").innerHTML = `<span class="inline-flex items-center gap-2 text-nexus-700"><span class="loader" style="width:14px;height:14px;border-width:2px;"></span>Loading...</span>`;
+
+      google.script.run
+        .withSuccessHandler(res => {
+          qs("loadOlderIndicator").innerHTML = "";
+          if (!res || !res.success) {
+            qs("updatesThread").innerHTML = `<div class="text-sm text-red-600 font-bold">⚠ ${escapeHtml(res?.error || "Failed to load updates.")}</div>`;
+            return;
+          }
+
+          const list = res.updates || [];
+          if (!list.length) {
+            qs("updatesThread").innerHTML = `<div class="text-sm text-gray-400">No updates yet.</div>`;
+          } else {
+            qs("updatesThread").innerHTML = "";
+            list.forEach(u => updatesRenderCard_(u, "append"));
+          }
+
+          updatesState.cursorMs = res.nextCursor || null;
+          updatesState.hasMore = !!res.nextCursor;
+          qs("btnLoadOlder").disabled = !updatesState.hasMore;
+        })
+        .withFailureHandler(err => {
+          console.error(err);
+          qs("loadOlderIndicator").innerHTML = "";
+          qs("updatesThread").innerHTML = `<div class="text-sm text-red-600 font-bold">⚠ Server error loading updates.</div>`;
+        })
+        .myGetUpdates(ticketId, 10, null);
+    }
+
+    function updatesLoadOlder_() {
+      if (!updatesState.ticketId || !updatesState.cursorMs) return;
+
+      qs("btnLoadOlder").disabled = true;
+      qs("loadOlderIndicator").innerHTML = `<span class="inline-flex items-center gap-2 text-nexus-700"><span class="loader" style="width:14px;height:14px;border-width:2px;"></span>Loading...</span>`;
+
+      google.script.run
+        .withSuccessHandler(res => {
+          qs("loadOlderIndicator").innerHTML = "";
+          if (!res || !res.success) {
+            setIndicator("updateIndicator", "error", res?.error || "Failed to load older updates.");
+            qs("btnLoadOlder").disabled = false;
+            return;
+          }
+
+          const list = res.updates || [];
+          list.forEach(u => updatesRenderCard_(u, "append"));
+
+          updatesState.cursorMs = res.nextCursor || null;
+          updatesState.hasMore = !!res.nextCursor;
+          qs("btnLoadOlder").disabled = !updatesState.hasMore;
+        })
+        .withFailureHandler(err => {
+          console.error(err);
+          qs("loadOlderIndicator").innerHTML = "";
+          setIndicator("updateIndicator", "error", "Server error loading older updates.");
+          qs("btnLoadOlder").disabled = false;
+        })
+        .myGetUpdates(updatesState.ticketId, 10, updatesState.cursorMs);
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function wait_(milliseconds) {
+      return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+
+    async function sendFinalThreadEmail_(updateRowIndex) {
+      if (!updateRowIndex) {
+        return { success: false, error: "Missing update row." };
+      }
+
+      const maxAttempts = 3;
+      let lastError = "";
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const result = await new Promise((resolve, reject) => {
+            google.script.run
+              .withSuccessHandler(res => {
+                if (res && res.success) {
+                  resolve(res);
+                  return;
+                }
+                reject(new Error(res?.error || "Update email failed."));
+              })
+              .withFailureHandler(err => reject(err))
+              .finalizeThreadUpdateNotification(updateRowIndex);
+          });
+
+          return {
+            success: true,
+            sent: !!result.sent,
+            skipped: !!result.skipped,
+            attempts: attempt
+          };
+
+        } catch (err) {
+          lastError = err?.message || String(err);
+          console.error(`Thread update email attempt ${attempt} of ${maxAttempts} failed:`, err);
+
+          if (attempt < maxAttempts) {
+            await wait_(1500 * attempt);
+          }
+        }
+      }
+
+      return {
+        success: false,
+        error: lastError || "Email notification failed after 3 attempts.",
+        attempts: maxAttempts
+      };
+    }
+
+    async function postUpdate_() {
+      if (!state.current) return;
+      if (postUpdateInFlight) return;
+
+      const ticketId = state.current.ticket_id;
+      const messageRaw = qs("updateMessageInput").value.trim();
+      const messageForStorage = forceTextOnSubmit_(messageRaw);
+
+      if (!messageRaw) {
+        setIndicator("updateIndicator", "error", "Empty update");
+        return;
+      }
+
+      const files = [
+        qs("u1").files[0],
+        qs("u2").files[0],
+        qs("u3").files[0],
+        qs("u4").files[0],
+        qs("u5").files[0]
+      ];
+
+      for (const f of files) {
+        if (f && f.size > MAX_BYTES) {
+          alert(`⚠️ "${f.name}" exceeds 10MB limit.`);
+          return;
+        }
+      }
+
+      postUpdateInFlight = true;
+      setPostUpdateUiLocked_(true);
+      setIndicator("updateIndicator", "saving");
+
+      google.script.run
+        .withSuccessHandler(async (res) => {
+          try {
+            if (!res || !res.success) {
+              setIndicator("updateIndicator", "error", res?.error || "Error");
+              return;
+            }
+
+            const pendingSlots = files.map(f => !!f);
+            updatesRenderCard_(
+              res.latestUpdate || {
+                update_author_email: "—",
+                update_timestamp: "Just now",
+                update_message: messageRaw,
+                update_att_1: "",
+                update_att_2: "",
+                update_att_3: "",
+                update_att_4: "",
+                update_att_5: ""
+              },
+              "prepend",
+              { rowIndex: res.updateRowIndex, pendingSlots }
+            );
+
+            qs("updateMessageInput").value = "";
+            clearUpdateFiles();
+
+            let hadUploadFailure = false;
+
+            for (let i = 0; i < files.length; i++) {
+              const f = files[i];
+              if (!f) continue;
+
+              try {
+                const base64 = await readFileAsBase64(f);
+                const payload = { name: f.name, content: base64, mimeType: f.type };
+
+                const upRes = await new Promise((resolve, reject) => {
+                  google.script.run
+                    .withSuccessHandler(resolve)
+                    .withFailureHandler(reject)
+                    .myUploadUpdateAttachment(res.updateRowIndex, ticketId, i, payload);
+                });
+
+                if (upRes && upRes.success && upRes.url) {
+                  const slot = document.getElementById(`upd_${res.updateRowIndex}_${i}`);
+                  if (slot) slot.innerHTML = updatesAttIcon_(upRes.url);
+                } else {
+                  hadUploadFailure = true;
+                }
+
+              } catch (e) {
+                console.error(e);
+                hadUploadFailure = true;
+              }
+            }
+
+            const emailResult = await sendFinalThreadEmail_(res.updateRowIndex);
+
+            if (!emailResult.success) {
+              console.error(
+                "The update was saved, but the notification email failed:",
+                emailResult.error
+              );
+
+              alert(
+                "Your update was saved successfully, but NEXUS could not send the email notification after 3 attempts.\n\n" +
+                "Please contact the system administrator if this continues."
+              );
+            }
+
+            if (hadUploadFailure && !emailResult.success) {
+              setIndicator("updateIndicator", "error", "Saved, but some uploads and the email notification failed");
+            } else if (hadUploadFailure) {
+              setIndicator("updateIndicator", "error", "Saved, but some uploads failed");
+            } else if (!emailResult.success) {
+              setIndicator("updateIndicator", "error", "Update saved, but email notification failed");
+            } else {
+              setIndicator("updateIndicator", "saved");
+            }
+
+            loadAll();
+
+          } finally {
+            postUpdateInFlight = false;
+            setPostUpdateUiLocked_(false);
+          }
+        })
+        .withFailureHandler((err) => {
+          console.error(err);
+          setIndicator("updateIndicator", "error", "Server error");
+          postUpdateInFlight = false;
+          setPostUpdateUiLocked_(false);
+        })
+        .myCreateUpdate(ticketId, messageForStorage);
+    }
+
+    qs("modalClose").addEventListener("click", closeModal);
+    qs("modal").addEventListener("click", () => {});
+    qs("modalCard").addEventListener("click", (e) => e.stopPropagation());
+
+    qs("btnLoadOlder").addEventListener("click", updatesLoadOlder_);
+    qs("btnPostUpdate").addEventListener("click", postUpdate_);
+
+    qs("btn_clear").addEventListener("click", () => {
+      qs("f_search").value = "";
+      qs("f_status").value = "";
+      applyFilters();
+    });
+
+    qs("btn_refresh").addEventListener("click", () => loadAll(false));
+    qs("f_search").addEventListener("input", applyFilters);
+    qs("f_status").addEventListener("change", applyFilters);
+
+    qs("pageSize").addEventListener("change", () => {
+      state.pageSize = parseInt(qs("pageSize").value, 10) || 10;
+      state.page = 1;
+      renderPaged();
+    });
+
+    qs("btnPrev").addEventListener("click", () => {
+      state.page = Math.max(1, state.page - 1);
+      renderPaged();
+    });
+
+    qs("btnNext").addEventListener("click", () => {
+      const total = state.filtered.length;
+      const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
+      state.page = Math.min(pageCount, state.page + 1);
+      renderPaged();
+    });
+
+    function loadAll(useBootLoader = false) {
+      qs("content").classList.add("hidden");
+
+      if (useBootLoader) {
+        qs("loading").classList.add("hidden");
+        qs("bootLoading").classList.remove("hidden");
+      } else {
+        qs("bootLoading").classList.add("hidden");
+        qs("loading").classList.remove("hidden");
+      }
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res || !res.success) {
+            qs("bootLoading").classList.add("hidden");
+            qs("loading").classList.remove("hidden");
+            alert(res?.error || "Failed to load tickets.");
+            return;
+          }
+
+          const def = parseInt(res.defaultPageSize, 10);
+          if (def && [10,25,50].includes(def)) {
+            state.pageSize = def;
+            qs("pageSize").value = String(def);
+          } else {
+            state.pageSize = 10;
+            qs("pageSize").value = "10";
+          }
+
+          state.tickets = res.tickets || [];
+          state.filtered = state.tickets.slice();
+
+          applyFilters();
+
+          qs("bootLoading").classList.add("hidden");
+          qs("loading").classList.add("hidden");
+          qs("content").classList.remove("hidden");
+        })
+        .withFailureHandler(err => {
+          qs("bootLoading").classList.add("hidden");
+          qs("loading").classList.remove("hidden");
+          alert("Server error: " + err);
+        })
+        .myInit();
+    }
+
+    initNexusPong_();
+    loadAll(true);
+  </script>
+</body>
+
+</html>

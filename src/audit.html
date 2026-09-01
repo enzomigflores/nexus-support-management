@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              nexus: {
+                50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81',
+              },
+              zinc: { 800: '#27272a', 900: '#18181b' }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; transform: translateY(10px); }
+      @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+      .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .modal-overlay { background: rgba(0,0,0,0.55); }
+    </style>
+  </head>
+
+  <body class="bg-gray-50 text-zinc-800 font-sans antialiased min-h-screen flex flex-col items-center py-10">
+
+    <div class="text-center mb-6 fade-in" style="animation-delay: 0.08s;">
+      <h1 class="text-4xl font-extrabold tracking-tight text-nexus-900">NEXUS</h1>
+      <p class="text-nexus-600 mt-2 font-medium">Audit Trail</p>
+    </div>
+
+    <div class="w-full max-w-6xl bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden fade-in" style="animation-delay: 0.15s;">
+
+      <!-- Loading -->
+      <div id="loading" class="flex flex-col items-center justify-center p-12 text-center min-h-[420px]">
+        <div class="loader w-12 h-12 border-4 mb-4"></div>
+        <h3 class="text-lg font-bold text-nexus-700">Loading audit records...</h3>
+        <p class="text-gray-500 text-sm mt-2">Please wait.</p>
+      </div>
+
+      <!-- Content -->
+      <div id="content" class="hidden">
+
+        <!-- Filters -->
+        <div class="p-6 border-b border-gray-100 bg-gray-50">
+          <div class="flex flex-col md:flex-row md:items-end gap-3">
+            <div class="w-full md:w-56">
+              <label class="block text-xs font-bold text-gray-600 mb-1">From (datetime)</label>
+              <input id="f_from" type="datetime-local"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+            </div>
+
+            <div class="w-full md:w-56">
+              <label class="block text-xs font-bold text-gray-600 mb-1">To (datetime)</label>
+              <input id="f_to" type="datetime-local"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+            </div>
+
+            <div class="flex-1">
+              <label class="block text-xs font-bold text-gray-600 mb-1">Actor email</label>
+              <input id="f_actor" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm"
+                placeholder="contains... e.g. admin@internal.example.com">
+            </div>
+
+            <div class="w-full md:w-60">
+              <label class="block text-xs font-bold text-gray-600 mb-1">Department</label>
+              <select id="f_dept"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-nexus-600 outline-none text-sm">
+                <option value="">All</option>
+                <option value="ACCOUNTING">ACCOUNTING</option>
+                <option value="BUSINESS SYSTEMS">BUSINESS SYSTEMS</option>
+                <option value="ADMINISTRATIVE">ADMINISTRATIVE</option>
+                <option value="OPERATIONS">OPERATIONS</option>
+              </select>
+            </div>
+
+            <div class="flex gap-2">
+              <button id="btn_clear"
+                class="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 text-sm font-bold">
+                Clear
+              </button>
+              <button id="btn_search"
+                class="px-4 py-2 rounded-lg bg-nexus-600 hover:bg-nexus-700 text-white text-sm font-bold shadow">
+                Search
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error box -->
+        <div id="errorBox" class="hidden px-6 py-4 border-b border-gray-100 bg-red-50">
+          <div class="text-sm font-extrabold text-red-700">Error</div>
+          <pre id="errorText" class="mt-2 text-xs text-red-700 whitespace-pre-wrap"></pre>
+        </div>
+
+        <!-- Table -->
+        <div class="p-6">
+          <div class="overflow-auto border border-gray-100 rounded-xl">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0 z-10">
+                <tr class="text-left text-gray-600">
+                  <th class="p-3 cursor-pointer select-none" data-sort="audit_ts_ms">Timestamp</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="ticket_id">Ticket</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="actor_email">Actor</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="_department">Department</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="source_view">Source</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="event_type">Event</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="field_name">Field</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="old_value">Old</th>
+                  <th class="p-3 cursor-pointer select-none" data-sort="new_value">New</th>
+                  <th class="p-3">File</th>
+                  <th class="p-3">Details</th>
+                </tr>
+              </thead>
+              <tbody id="tbody" class="divide-y divide-gray-100 bg-white"></tbody>
+            </table>
+          </div>
+
+          <!-- Pagination bar -->
+          <div class="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div id="pageInfo" class="text-xs text-gray-500"></div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500 font-semibold">Rows:</span>
+              <select id="pageSize"
+                class="px-2 py-1 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-nexus-600 outline-none">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+
+              <button id="btnPrevPage"
+                class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 text-sm font-bold disabled:opacity-50"
+                type="button">
+                Prev
+              </button>
+
+              <button id="btnNextPage"
+                class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 text-sm font-bold disabled:opacity-50"
+                type="button">
+                Next
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Tip: click column headers to sort ascending/descending (sorting applies to the current page).
+          </div>
+        </div>
+
+        <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 text-center">
+          <p class="text-xs text-gray-400">NEXUS | Internal Support Management System</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 modal-overlay z-50">
+      <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden fade-in" id="modalCard">
+          <div class="p-5 border-b border-gray-100 flex items-start justify-between">
+            <div>
+              <h2 class="text-xl font-extrabold text-nexus-900">
+                Audit Details
+              </h2>
+              <div class="mt-1 text-sm text-gray-500">
+                <span class="font-semibold">Ticket:</span> <span id="m_ticket" class="font-mono">—</span>
+                <span class="mx-2">•</span>
+                <span class="font-semibold">Actor:</span> <span id="m_actor">—</span>
+              </div>
+            </div>
+            <button id="modalClose" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-2">×</button>
+          </div>
+
+          <div class="p-6 space-y-5 max-h-[78vh] overflow-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">Timestamp</div>
+                <div id="m_ts" class="mt-1 font-semibold text-zinc-800">—</div>
+              </div>
+              <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">Department</div>
+                <div id="m_dept" class="mt-1 font-semibold text-zinc-800">—</div>
+              </div>
+              <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">Source / Actor Type</div>
+                <div class="mt-1 font-semibold text-zinc-800">
+                  <span id="m_source">—</span>
+                  <span class="text-gray-400 mx-1">•</span>
+                  <span id="m_actorType">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div class="bg-white border border-gray-100 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">Event</div>
+                <div id="m_event" class="mt-1 font-semibold text-zinc-800">—</div>
+              </div>
+              <div class="bg-white border border-gray-100 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">Field</div>
+                <div id="m_field" class="mt-1 font-semibold text-zinc-800">—</div>
+              </div>
+              <div class="bg-white border border-gray-100 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">File</div>
+                <div id="m_file" class="mt-2">—</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-white border border-gray-100 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">Old value</div>
+                <pre id="m_old" class="mt-2 text-sm text-zinc-800 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-56 overflow-auto"></pre>
+              </div>
+              <div class="bg-white border border-gray-100 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-600">New value</div>
+                <pre id="m_new" class="mt-2 text-sm text-zinc-800 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-56 overflow-auto"></pre>
+              </div>
+            </div>
+
+            <div class="bg-white border border-gray-100 rounded-xl p-4">
+              <div class="text-xs font-bold text-gray-600">Meta JSON</div>
+              <pre id="m_meta" class="mt-2 text-xs text-zinc-800 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-64 overflow-auto"></pre>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let state = {
+        rows: [],
+        total: 0,
+        page: 1,
+        pageSize: 50,
+        sortKey: "audit_ts_ms",
+        sortDir: "desc",
+        current: null
+      };
+
+      const qs = (id) => document.getElementById(id);
+
+      function escapeHtml(str) {
+        return String(str ?? "").replace(/[&<>"']/g, s => ({
+          "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+        }[s]));
+      }
+
+      function escapeAttr(str) {
+        return String(str ?? "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+      }
+
+      function showError(msg) {
+        qs("errorText").textContent = String(msg || "Unknown error");
+        qs("errorBox").classList.remove("hidden");
+      }
+
+      function clearError() {
+        qs("errorText").textContent = "";
+        qs("errorBox").classList.add("hidden");
+      }
+
+      function setBusy(busy) {
+        const btn = qs("btn_search");
+        const clr = qs("btn_clear");
+        const ps = qs("pageSize");
+        const prev = qs("btnPrevPage");
+        const next = qs("btnNextPage");
+
+        [btn, clr, ps, prev, next].forEach(el => {
+          if (!el) return;
+          el.disabled = !!busy;
+          el.classList.toggle("opacity-60", !!busy);
+          el.classList.toggle("cursor-not-allowed", !!busy);
+        });
+
+        if (btn) {
+          btn.innerHTML = busy
+            ? `<span class="inline-flex items-center gap-2"><span class="loader" style="width:14px;height:14px;border-width:2px;"></span>Searching...</span>`
+            : `Search`;
+        }
+      }
+
+      function parseDateOrDateTimeToMs(val, isEnd) {
+        const v = String(val || "").trim();
+        if (!v) return null;
+
+        if (v.includes("T")) {
+          const [dPart, tPartRaw] = v.split("T");
+          const [yy, mm, dd] = dPart.split("-").map(Number);
+          const tParts = String(tPartRaw || "").split(":");
+          const hh = Number(tParts[0] || 0);
+          const mi = Number(tParts[1] || 0);
+          const ss = Number(tParts[2] || 0);
+
+          if (!yy || !mm || !dd) return null;
+          const dt = new Date(yy, mm - 1, dd, hh, mi, ss, 0);
+          const ms = dt.getTime();
+          return isNaN(ms) ? null : ms;
+        }
+
+        const [yy, mm, dd] = v.split("-").map(Number);
+        if (!yy || !mm || !dd) return null;
+
+        const dt = isEnd
+          ? new Date(yy, mm - 1, dd, 23, 59, 59, 999)
+          : new Date(yy, mm - 1, dd, 0, 0, 0, 0);
+
+        const ms = dt.getTime();
+        return isNaN(ms) ? null : ms;
+      }
+
+      function safeJson(objOrStr) {
+        try {
+          if (!objOrStr) return {};
+          if (typeof objOrStr === "object") return objOrStr;
+          return JSON.parse(String(objOrStr));
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function buildFilters() {
+        const actorQ = qs("f_actor").value.trim().toLowerCase();
+        const department = qs("f_dept").value;
+
+        const fromMs = parseDateOrDateTimeToMs(qs("f_from").value, false);
+        const toMs = parseDateOrDateTimeToMs(qs("f_to").value, true);
+
+        // Treat invalid dates as empty.
+        return {
+          fromMs: fromMs ?? "",
+          toMs: toMs ?? "",
+          actorQ,
+          department
+        };
+      }
+
+      function updatePaginationUI() {
+        const total = Number(state.total || 0);
+        const pageSize = Number(state.pageSize || 50);
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+        const start = total ? ((state.page - 1) * pageSize + 1) : 0;
+        const end = total ? Math.min(state.page * pageSize, total) : 0;
+
+        qs("pageInfo").textContent = total
+          ? `Showing ${start}-${end} of ${total} (page ${state.page} of ${totalPages})`
+          : `0 records`;
+
+        qs("btnPrevPage").disabled = (state.page <= 1 || total === 0);
+        qs("btnNextPage").disabled = (state.page >= totalPages || total === 0);
+      }
+
+      function sortDisplayRows(rows) {
+        const key = state.sortKey;
+        const dir = state.sortDir;
+
+        const norm = (v) => {
+          if (v === null || v === undefined) return "";
+          return String(v).toLowerCase();
+        };
+
+        const num = (v) => {
+          const n = Number(v);
+          return isNaN(n) ? 0 : n;
+        };
+
+        const copy = rows.slice();
+        copy.sort((a, b) => {
+          if (key === "audit_ts_ms") {
+            const av = num(a.audit_ts_ms);
+            const bv = num(b.audit_ts_ms);
+            return dir === "asc" ? (av - bv) : (bv - av);
+          }
+
+          const av = norm(a[key]);
+          const bv = norm(b[key]);
+          if (av < bv) return dir === "asc" ? -1 : 1;
+          if (av > bv) return dir === "asc" ? 1 : -1;
+          return 0;
+        });
+
+        return copy;
+      }
+
+      function badgeFile(url) {
+        if (!url) return `<span class="text-gray-400 text-xs font-bold">None</span>`;
+        return `
+          <button class="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-nexus-100 text-nexus-700 hover:bg-nexus-50 text-xs font-bold"
+            onclick="window.open('${escapeAttr(url)}','_blank')"
+            type="button"
+          >📎 Open</button>
+        `;
+      }
+
+      function renderTable(rows) {
+        const tbody = qs("tbody");
+        tbody.innerHTML = "";
+
+        if (!rows.length) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="11" class="p-6 text-center text-gray-400">No records found.</td>
+            </tr>
+          `;
+          return;
+        }
+
+        rows.forEach(r => {
+          const tr = document.createElement("tr");
+
+          const oldV = String(r.old_value || "");
+          const newV = String(r.new_value || "");
+
+          tr.innerHTML = `
+            <td class="p-3 text-gray-700 whitespace-nowrap">${escapeHtml(r.audit_ts || "—")}</td>
+            <td class="p-3 font-mono font-bold text-nexus-900 whitespace-nowrap">${escapeHtml(r.ticket_id || "—")}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${escapeHtml(r.actor_email || "—")}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${escapeHtml(r._department || "—")}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${escapeHtml(r.source_view || "—")}</td>
+            <td class="p-3 text-gray-800 whitespace-nowrap">${escapeHtml(r.event_type || "—")}</td>
+            <td class="p-3 text-gray-700 whitespace-nowrap">${escapeHtml(r.field_name || "—")}</td>
+            <td class="p-3 text-gray-700 max-w-[260px]">
+              <div class="truncate" title="${escapeHtml(oldV)}">${escapeHtml(oldV || "—")}</div>
+            </td>
+            <td class="p-3 text-gray-700 max-w-[260px]">
+              <div class="truncate" title="${escapeHtml(newV)}">${escapeHtml(newV || "—")}</div>
+            </td>
+            <td class="p-3">${badgeFile(r.file_url || "")}</td>
+            <td class="p-3">
+              <button class="px-3 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 text-xs font-bold"
+                type="button"
+                data-open="1"
+              >View</button>
+            </td>
+          `;
+
+          tr.querySelector('button[data-open="1"]').addEventListener("click", () => openModal(r));
+          tbody.appendChild(tr);
+        });
+      }
+
+      function bindSortHeaders() {
+        document.querySelectorAll("th[data-sort]").forEach(th => {
+          if (th.dataset.bound === "1") return;
+          th.dataset.bound = "1";
+
+          th.addEventListener("click", () => {
+            const k = th.getAttribute("data-sort");
+            if (state.sortKey === k) {
+              state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+            } else {
+              state.sortKey = k;
+              // Timestamp defaults to newest first.
+              state.sortDir = (k === "audit_ts_ms") ? "desc" : "asc";
+            }
+
+            // Sort the current page.
+            const sorted = sortDisplayRows(state.rows || []);
+            renderTable(sorted);
+          });
+        });
+      }
+
+      function preprocessRows(rows) {
+        return (rows || []).map(r => {
+          const meta = safeJson(r.meta_json);
+          const dept = String(meta.department || "").trim();
+          return {
+            ...r,
+            _department: dept || ""
+          };
+        });
+      }
+
+      function fetchPage() {
+        setBusy(true);
+        clearError();
+
+        google.script.run
+          .withSuccessHandler(res => {
+            setBusy(false);
+
+            qs("loading").classList.add("hidden");
+            qs("content").classList.remove("hidden");
+
+            if (!res || !res.success) {
+              showError(res?.error || "auditSearch returned an invalid response.");
+              state.rows = [];
+              state.total = 0;
+              renderTable([]);
+              updatePaginationUI();
+              bindSortHeaders();
+              return;
+            }
+
+            state.total = Number(res.total || 0);
+            state.rows = preprocessRows(res.rows || []);
+
+            const sorted = sortDisplayRows(state.rows);
+            renderTable(sorted);
+
+            updatePaginationUI();
+            bindSortHeaders();
+          })
+          .withFailureHandler(err => {
+            setBusy(false);
+
+            qs("loading").classList.add("hidden");
+            qs("content").classList.remove("hidden");
+
+            showError(err && err.message ? err.message : String(err));
+            state.rows = [];
+            state.total = 0;
+            renderTable([]);
+            updatePaginationUI();
+            bindSortHeaders();
+          })
+          .auditSearch(buildFilters(), state.page, state.pageSize);
+      }
+
+      function searchResetToFirstPage() {
+        state.page = 1;
+        fetchPage();
+      }
+
+      function clearFilters() {
+        qs("f_from").value = "";
+        qs("f_to").value = "";
+        qs("f_actor").value = "";
+        qs("f_dept").value = "";
+
+        // Reset to newest first.
+        state.sortKey = "audit_ts_ms";
+        state.sortDir = "desc";
+
+        searchResetToFirstPage();
+      }
+
+      // Modal
+      function openModal(r) {
+        state.current = r;
+
+        const metaObj = safeJson(r.meta_json || {});
+        let metaPretty = "";
+        try {
+          metaPretty = JSON.stringify(metaObj, null, 2);
+        } catch (e) {
+          metaPretty = String(r.meta_json || "");
+        }
+
+        qs("m_ticket").textContent = r.ticket_id || "—";
+        qs("m_actor").textContent = r.actor_email || "—";
+        qs("m_ts").textContent = r.audit_ts || "—";
+        qs("m_dept").textContent = r._department || "—";
+        qs("m_source").textContent = r.source_view || "—";
+        qs("m_actorType").textContent = r.actor_type || "—";
+        qs("m_event").textContent = r.event_type || "—";
+        qs("m_field").textContent = r.field_name || "—";
+
+        const fileUrl = String(r.file_url || "");
+        qs("m_file").innerHTML = badgeFile(fileUrl);
+
+        qs("m_old").textContent = String(r.old_value || "");
+        qs("m_new").textContent = String(r.new_value || "");
+        qs("m_meta").textContent = metaPretty || "";
+
+        qs("modal").classList.remove("hidden");
+      }
+
+      function closeModal() {
+        qs("modal").classList.add("hidden");
+        state.current = null;
+      }
+
+      qs("modalClose").addEventListener("click", closeModal);
+      qs("modal").addEventListener("click", () => { /* no outside close */ });
+      qs("modalCard").addEventListener("click", (e) => e.stopPropagation());
+
+      // Events
+      qs("btn_search").addEventListener("click", () => searchResetToFirstPage());
+      qs("btn_clear").addEventListener("click", clearFilters);
+
+      ["f_from","f_to","f_actor","f_dept"].forEach(id => {
+        qs(id).addEventListener("change", () => searchResetToFirstPage());
+        if (id === "f_actor") qs(id).addEventListener("input", () => searchResetToFirstPage());
+      });
+
+      qs("pageSize").addEventListener("change", () => {
+        state.pageSize = Number(qs("pageSize").value || 50);
+        state.page = 1;
+        fetchPage();
+      });
+
+      qs("btnPrevPage").addEventListener("click", () => {
+        if (state.page > 1) {
+          state.page--;
+          fetchPage();
+        }
+      });
+
+      qs("btnNextPage").addEventListener("click", () => {
+        state.page++;
+        fetchPage();
+      });
+
+      
+      function boot() {
+        // Show all records by default, newest first.
+        state.pageSize = Number(qs("pageSize").value || 50);
+        state.page = 1;
+        fetchPage();
+      }
+
+      boot();
+    </script>
+  </body>
+</html>
