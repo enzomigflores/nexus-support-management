@@ -4,6 +4,29 @@ NEXUS is an internal support management system built to centralize employee requ
 
 It was designed as a practical business system rather than a standalone demo. The public version in this repository has been sanitized to remove company-specific identities, addresses, identifiers, and internal configuration.
 
+## Interface Preview
+
+### Ticket Submission
+![NEXUS Ticket Submission](screenshots/ticket-submission.png)
+
+### Admin Panel
+![NEXUS Admin Panel](screenshots/admin.png)
+
+### My Tickets
+![NEXUS My Tickets](screenshots/my-tickets.png)
+
+### Metrics
+![NEXUS Metrics](screenshots/metrics.png)
+
+### Audit Trail
+![NEXUS Audit Trail](screenshots/audit.png)
+
+### NEXUS Ping Pong
+
+A lightweight loading experience built into selected NEXUS views.
+
+![NEXUS Ping Pong](screenshots/ping-pong.png)
+
 ## What it does
 
 - Creates and tracks support tickets with unique IDs
@@ -101,6 +124,13 @@ NEXUS tracks several workflow events beyond basic ticket status changes, includi
 ```text
 nexus-support-management/
 ├── README.md
+├── screenshots/
+│   ├── ticket-submission.png
+│   ├── admin.png
+│   ├── my-tickets.png
+│   ├── metrics.png
+│   ├── audit.png
+│   └── ping-pong.png
 └── src/
     ├── Code.gs
     ├── index.html
