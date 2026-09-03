@@ -9,32 +9,32 @@ It was designed as a practical business system rather than a standalone demo. Th
 ### Ticket Submission
 Employees can submit requests, choose a category and priority, provide supporting details, and attach files.
 
-![NEXUS Ticket Submission](screenshots/ticket-submission.png)
+<img src="screenshots/ticket-submission.png" alt="NEXUS Ticket Submission" width="650">
 
 ### Admin Panel
 Authorized team members can filter tickets, review ownership and status, and open individual records for further action.
 
-![NEXUS Admin Panel](screenshots/admin.png)
+<img src="screenshots/admin.png" alt="NEXUS Admin Panel" width="650">
 
 ### My Tickets
 Requesters can review their own tickets, monitor progress, and open ticket details and update threads.
 
-![NEXUS My Tickets](screenshots/my-tickets.png)
+<img src="screenshots/my-tickets.png" alt="NEXUS My Tickets" width="650">
 
 ### Metrics
 Operational metrics surface ticket volume, backlog, response and resolution timing, attention queues, and team activity.
 
-![NEXUS Metrics](screenshots/metrics.png)
+<img src="screenshots/metrics.png" alt="NEXUS Metrics" width="650">
 
 ### Audit Trail
 The audit interface records system activity such as ticket creation, assignment changes, status changes, updates, and attachments.
 
-![NEXUS Audit Trail](screenshots/audit.png)
+<img src="screenshots/audit.png" alt="NEXUS Audit Trail" width="650">
 
 ### NEXUS Ping Pong
 A lightweight loading experience built into selected NEXUS views while application data is loading.
 
-![NEXUS Ping Pong](screenshots/nexus-ping-pong.png)
+<img src="screenshots/nexus-ping-pong.png" alt="NEXUS Ping Pong" width="650">
 
 ## What it does
 
